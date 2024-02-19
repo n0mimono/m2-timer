@@ -1,0 +1,20 @@
+{
+    "appName": {
+        "message": "M2 Timer"
+    },
+    "appDesc": {
+        "message": "ウィンセッション用タイマーです。"
+    },
+    "timeout": {
+        "message": "(*•̀ᴗ•́*)و ̑̑"
+    },
+    "prefix": {
+        "message": "&lt;&lt;"
+    },
+    "splitter": {
+        "message": "-~#"
+    },
+    "suffix": {
+        "message": "&gt;&gt;"
+    }
+}
