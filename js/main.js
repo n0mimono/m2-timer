@@ -1,25 +1,22 @@
 class TimeExpression {
-    constructor() {
-        this.prefix = chrome.i18n.getMessage('prefix')
-        this.splitter = chrome.i18n.getMessage('splitter')
-        this.suffix = chrome.i18n.getMessage('suffix')
+    constructor(str) {
         this.timeout = chrome.i18n.getMessage('timeout')
-    }
 
-    build(str) {
-        const regex = new RegExp(`${this.prefix}\\d{2}:\\d{2}${this.splitter}[0-9a-zA-Z]+${this.suffix}`)
-        const matched = str.match(regex)
+        const prefix = chrome.i18n.getMessage('prefix')
+        const splitter = chrome.i18n.getMessage('splitter')
+        const suffix = chrome.i18n.getMessage('suffix')
 
-        if (!matched) {
+        const regex = new RegExp(`${prefix}(\\d{2}):(\\d{2})${splitter}([0-9a-zA-Z]+)${suffix}`)
+        const matches = regex.exec(str)
+
+        if (!matches) {
             this.ok = false
             return
         }
-        this.ok = true
 
-        const xs = matched[0].replace(this.prefix, '').replace(this.suffix, '').split(this.splitter)
-        const mmss = xs[0].split(':')
-        this.limit = parseInt(mmss[0]) * 60 + parseInt(mmss[1])
-        this.label = xs[1]
+        this.ok = true
+        this.limit = parseInt(matches[1]) * 60 + parseInt(matches[2])
+        this.label = matches[3]
     }
 
     now(elapsed) {
@@ -46,13 +43,12 @@ class Timer {
             element.m2timer = element.innerHTML
         }
 
-        this.exp = new TimeExpression()
-        this.exp.build(html)
+        this.exp = new TimeExpression(html)
 
-        this.active = this.exp.ok
-        this.element = element
+        this.enabled = this.exp.ok
         this.label = this.exp.label
         this.elapsed = -1
+        this.element = element
     }
 
     update(elapsed) {
@@ -85,7 +81,7 @@ class Session {
 
         texts.forEach((text) => {
             const timer = new Timer(text)
-            if (timer.active) {
+            if (timer.enabled) {
                 this.timers.push(timer)
             }
         })
@@ -113,53 +109,60 @@ class Session {
 {
     (function () {
         let session = new Session()
-
-        // update by time
-        setInterval(() => {
-            if (document.fullscreenElement) {
-                onFullScreenUpdate(session)
-            }
-        }, 100)
-
-        // update by full screen change
-        document.addEventListener("fullscreenchange", () => {
-            if (document.fullscreenElement) {
-                onFullScreenEnable(session)
-            } else {
-                onFullScreenDesable(session)
-            }
-        })
+        let presenterRunning = false
 
         // update by document body change
         const observer = new MutationObserver((mutations) => {
-            if (document.fullscreenElement) {
-                onDocumentChange(session)
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.className == 'punch-full-screen-element punch-full-window-overlay') {
+                        presenterRunning = true
+                        onPresenterEnable(session)
+                    }
+                })
+                mutation.removedNodes.forEach((node) => {
+                    if (node.className == 'punch-full-screen-element punch-full-window-overlay') {
+                        presenterRunning = false
+                        onPresenterDesable(session)
+                    }
+                })
+            })
+
+            if (presenterRunning) {
+                onPresenterSlideUpdate(session)
             }
         })
         observer.observe(document.documentElement, {
             childList: true,
             subtree: true
         });
+
+        // update by time
+        setInterval(() => {
+            if (presenterRunning) {
+                onPresenterTimeUpdate(session)
+            }
+        }, 100)
     })()
 
-    function onFullScreenEnable(session) {
-        //console.log('onFullScreenEnable')
+    function onPresenterEnable(session) {
+        //console.log('onPresenterEnable')
         session.initMonitors()
     }
 
-    function onFullScreenDesable(session) {
-        //console.log('onFullScreenDesable')
+    function onPresenterDesable(session) {
+        //console.log('onPresenterDesable')
         // nop
     }
 
-    function onFullScreenUpdate(session) {
-        //console.log('onFullScreenUpdate')
+    function onPresenterSlideUpdate(session) {
+        //console.log('onPresenterSlideUpdate')
+        session.initTimers()
         session.updateTimers()
     }
 
-    function onDocumentChange(session) {
-        //console.log('onDocumentChange')
-        session.initTimers()
+    function onPresenterTimeUpdate(session) {
+        //console.log('onPresenterTimeUpdate')
         session.updateTimers()
     }
 }
