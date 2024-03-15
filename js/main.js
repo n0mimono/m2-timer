@@ -146,23 +146,23 @@ class Session {
     })()
 
     function onPresenterEnable(session) {
-        //console.log('onPresenterEnable')
+        console.log('onPresenterEnable')
         session.initMonitors()
     }
 
     function onPresenterDesable(session) {
-        //console.log('onPresenterDesable')
+        console.log('onPresenterDesable')
         // nop
     }
 
     function onPresenterSlideUpdate(session) {
-        //console.log('onPresenterSlideUpdate')
+        console.log('onPresenterSlideUpdate')
         session.initTimers()
         session.updateTimers()
     }
 
     function onPresenterTimeUpdate(session) {
-        //console.log('onPresenterTimeUpdate')
+        console.log('onPresenterTimeUpdate')
         session.updateTimers()
     }
 }
