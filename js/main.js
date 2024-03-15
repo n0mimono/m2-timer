@@ -1,3 +1,28 @@
+class Logger {
+    records = []
+
+    static init() {
+        this.records = []
+    }
+
+    static save() {
+        chrome.runtime.sendMessage({
+            key: 'logger_save',
+            value: this.records
+        })
+    }
+
+    static log(label, body) {
+        const t = Date.now()
+        const record = {
+            t: t,
+            label: label,
+            body: body,
+        }
+        this.records.push(record)
+    }
+}
+
 class TimeExpression {
     constructor(str) {
         this.timeout = chrome.i18n.getMessage('timeout')
@@ -81,16 +106,19 @@ class Session {
 
         texts.forEach((text) => {
             const timer = new Timer(text)
+
             if (timer.enabled) {
                 this.timers.push(timer)
             }
         })
+        Logger.log('timers_create', this.timers)
 
         this.timers.forEach((timer) => {
             if (timer.label in this.monitors) {
                 // nop
             } else {
                 this.monitors[timer.label] = Date.now()
+                Logger.log('monitors_update', this.monitors)
             }
         })
     }
@@ -146,23 +174,24 @@ class Session {
     })()
 
     function onPresenterEnable(session) {
-        //console.log('onPresenterEnable')
+        Logger.init()
+        Logger.log('update', 'onPresenterEnable')
         session.initMonitors()
     }
 
     function onPresenterDesable(session) {
-        //console.log('onPresenterDesable')
-        // nop
+        Logger.log('update', 'onPresenterDesable')
+        Logger.save()
     }
 
     function onPresenterSlideUpdate(session) {
-        //console.log('onPresenterSlideUpdate')
+        Logger.log('update', 'onPresenterSlideUpdate')
         session.initTimers()
         session.updateTimers()
     }
 
     function onPresenterTimeUpdate(session) {
-        //console.log('onPresenterTimeUpdate')
+        Logger.log('update', 'onPresenterTimeUpdate')
         session.updateTimers()
     }
 }

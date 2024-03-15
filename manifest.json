@@ -17,5 +17,12 @@
             ]
         }
     ],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "permissions": [
+        "downloads",
+        "background"
+    ],
     "offline_enabled": true
 }
