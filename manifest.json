@@ -17,12 +17,16 @@
             ]
         }
     ],
+    "action": {
+        "default_title": "m2-timer",
+        "default_icon": "img/icon_128.png",
+        "default_popup": "popup.html"
+    },
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "js/background.js"
     },
     "permissions": [
-        "downloads",
-        "background"
+        "tabs"
     ],
     "offline_enabled": true
 }

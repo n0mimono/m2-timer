@@ -1,14 +1,20 @@
 class Logger {
-    records = []
+    static records = []
+    static url = undefined
 
-    static init() {
-        this.records = []
-    }
-
-    static save() {
-        chrome.runtime.sendMessage({
-            key: 'logger_save',
-            value: this.records
+    static {
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            switch (message.key) {
+                case 'show_log':
+                    sendResponse({
+                        records: this.records
+                    })
+                    return true
+                case 'tab_changed':
+                    this.url = message.value.url
+                    sendResponse({})
+                    return true
+            }
         })
     }
 
@@ -16,10 +22,13 @@ class Logger {
         const t = Date.now()
         const record = {
             t: t,
+            url: this.url,
             label: label,
-            body: body,
+            body: JSON.parse(JSON.stringify(body)),
         }
         this.records.push(record)
+
+        console.log(record)
     }
 }
 
@@ -111,6 +120,7 @@ class Session {
 
         const iframe = document.querySelector('iframe.punch-present-iframe')
         const texts = [...iframe.contentWindow.document.getElementsByTagName('text')]
+        Logger.log('texts_count', texts.length)
 
         texts.forEach((text) => {
             const timer = new Timer(text)
@@ -182,14 +192,12 @@ class Session {
     })()
 
     function onPresenterEnable(session) {
-        Logger.init()
         Logger.log('update', 'onPresenterEnable')
         session.initMonitors()
     }
 
     function onPresenterDesable(session) {
         Logger.log('update', 'onPresenterDesable')
-        Logger.save()
     }
 
     function onPresenterSlideUpdate(session) {
