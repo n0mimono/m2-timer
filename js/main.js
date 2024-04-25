@@ -1,6 +1,6 @@
 class TimeExpression {
     constructor(str) {
-        this.timeout = chrome.i18n.getMessage('timeout')
+        this.overtimeColor = chrome.i18n.getMessage('overtimeColor')
 
         const prefix = chrome.i18n.getMessage('prefix')
         const splitter = chrome.i18n.getMessage('splitter')
@@ -22,15 +22,19 @@ class TimeExpression {
     now(elapsed) {
         const left = this.limit - elapsed
 
-        if (left <= 0) {
-            return this.timeout
-        }
-
-        const mm = parseInt(left / 60)
-        const ss = left % 60
+        const num = Math.abs(left)
+        const mm = parseInt(num / 60)
+        const ss = num % 60
         const f = (x) => ('00' + x).slice(-2)
+        const text = `${f(mm)}:${f(ss)}`
 
-        return `${f(mm)}:${f(ss)}`
+        const overtime = Math.sign(left) < 0
+        const color = overtime ? this.overtimeColor : undefined
+
+        return {
+            text: text,
+            color: color,
+        }
     }
 }
 
@@ -38,9 +42,11 @@ class Timer {
     constructor(element) {
         let html = element.innerHTML
         if (element.m2timer) {
-            html = element.m2timer
+            html = element.m2timer.innerHTML
         } else {
-            element.m2timer = element.innerHTML
+            element.m2timer = {
+                innerHTML: element.innerHTML
+            }
         }
 
         this.exp = new TimeExpression(html)
@@ -59,7 +65,9 @@ class Timer {
         }
         this.elapsed = elapsed
 
-        this.element.innerHTML = this.exp.now(elapsed)
+        const disp = this.exp.now(elapsed)
+        this.element.innerHTML = disp.text
+        this.element.style.fill = disp.color
     }
 }
 
