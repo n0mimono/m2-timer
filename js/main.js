@@ -151,6 +151,13 @@ class Session {
                 onPresenterTimeUpdate(session)
             }
         }, 100)
+
+        // workaround for win
+        setInterval(() => {
+            if (presenterRunning) {
+                onPresenterSlideUpdate(session)
+            }
+        }, 1000)
     })()
 
     function onPresenterEnable(session) {
