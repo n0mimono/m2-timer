@@ -1,3 +1,37 @@
+class Logger {
+    static records = []
+    static url = undefined
+
+    static {
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            switch (message.key) {
+                case 'show_log':
+                    sendResponse({
+                        records: this.records
+                    })
+                    return true
+                case 'tab_changed':
+                    this.url = message.value.url
+                    sendResponse({})
+                    return true
+            }
+        })
+    }
+
+    static log(label, body) {
+        const t = Date.now()
+        const record = {
+            t: t,
+            url: this.url,
+            label: label,
+            body: JSON.parse(JSON.stringify(body)),
+        }
+        this.records.push(record)
+
+        console.log(record)
+    }
+}
+
 class TimeExpression {
     constructor(str) {
         this.overtimeColor = chrome.i18n.getMessage('overtimeColor')
@@ -86,19 +120,23 @@ class Session {
 
         const iframe = document.querySelector('iframe.punch-present-iframe')
         const texts = [...iframe.contentWindow.document.getElementsByTagName('text')]
+        Logger.log('texts_count', texts.length)
 
         texts.forEach((text) => {
             const timer = new Timer(text)
+
             if (timer.enabled) {
                 this.timers.push(timer)
             }
         })
+        Logger.log('timers_create', this.timers)
 
         this.timers.forEach((timer) => {
             if (timer.label in this.monitors) {
                 // nop
             } else {
                 this.monitors[timer.label] = Date.now()
+                Logger.log('monitors_update', this.monitors)
             }
         })
     }
@@ -161,23 +199,22 @@ class Session {
     })()
 
     function onPresenterEnable(session) {
-        //console.log('onPresenterEnable')
+        Logger.log('update', 'onPresenterEnable')
         session.initMonitors()
     }
 
     function onPresenterDesable(session) {
-        //console.log('onPresenterDesable')
-        // nop
+        Logger.log('update', 'onPresenterDesable')
     }
 
     function onPresenterSlideUpdate(session) {
-        //console.log('onPresenterSlideUpdate')
+        Logger.log('update', 'onPresenterSlideUpdate')
         session.initTimers()
         session.updateTimers()
     }
 
     function onPresenterTimeUpdate(session) {
-        //console.log('onPresenterTimeUpdate')
+        Logger.log('update', 'onPresenterTimeUpdate')
         session.updateTimers()
     }
 }
