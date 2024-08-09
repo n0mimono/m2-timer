@@ -1,6 +1,19 @@
 class TimeExpression {
+    #ok = false
+    #limit = 0
+    #label = ''
+    #overtimeColor = ''
+
+    get ok() {
+        return this.#ok
+    }
+
+    get label() {
+        return this.#label
+    }
+
     constructor(str) {
-        this.overtimeColor = chrome.i18n.getMessage('overtimeColor')
+        this.#overtimeColor = chrome.i18n.getMessage('overtimeColor')
 
         const prefix = chrome.i18n.getMessage('prefix')
         const splitter = chrome.i18n.getMessage('splitter')
@@ -10,17 +23,17 @@ class TimeExpression {
         const matches = regex.exec(str)
 
         if (!matches) {
-            this.ok = false
+            this.#ok = false
             return
         }
 
-        this.ok = true
-        this.limit = parseInt(matches[1]) * 60 + parseInt(matches[2])
-        this.label = matches[3]
+        this.#ok = true
+        this.#limit = parseInt(matches[1]) * 60 + parseInt(matches[2])
+        this.#label = matches[3]
     }
 
     now(elapsed) {
-        const left = this.limit - elapsed
+        const left = this.#limit - elapsed
 
         const num = Math.abs(left)
         const mm = parseInt(num / 60)
@@ -29,7 +42,7 @@ class TimeExpression {
         const text = `${f(mm)}:${f(ss)}`
 
         const overtime = Math.sign(left) < 0
-        const color = overtime ? this.overtimeColor : undefined
+        const color = overtime ? this.#overtimeColor : undefined
 
         return {
             text: text,
@@ -39,6 +52,18 @@ class TimeExpression {
 }
 
 class Timer {
+    #element = undefined
+    #exp = undefined
+    #elapsed = -1
+
+    get enabled() {
+        return this.#exp.ok
+    }
+
+    get label() {
+        return this.#exp.label
+    }
+
     constructor(element) {
         let html = element.innerHTML
         if (element.m2timer) {
@@ -49,40 +74,35 @@ class Timer {
             }
         }
 
-        this.exp = new TimeExpression(html)
-
-        this.enabled = this.exp.ok
-        this.label = this.exp.label
-        this.elapsed = -1
-        this.element = element
+        this.#element = element
+        this.#exp = new TimeExpression(html)
+        this.#elapsed = -1
     }
 
     update(elapsed) {
         elapsed = parseInt(elapsed)
 
-        if (this.elapsed === elapsed) {
+        if (this.#elapsed === elapsed) {
             return
         }
-        this.elapsed = elapsed
+        this.#elapsed = elapsed
 
-        const disp = this.exp.now(elapsed)
-        this.element.innerHTML = disp.text
-        this.element.style.fill = disp.color
+        const disp = this.#exp.now(elapsed)
+        this.#element.innerHTML = disp.text
+        this.#element.style.fill = disp.color
     }
 }
 
 class Session {
-    constructor() {
-        this.timers = []
-        this.monitors = {}
-    }
+    #timers = []
+    #monitors = {}
 
     initMonitors() {
-        this.monitors = {}
+        this.#monitors = {}
     }
 
     initTimers() {
-        this.timers = []
+        this.#timers = []
 
         const iframe = document.querySelector('iframe.punch-present-iframe')
         const texts = [...iframe.contentWindow.document.getElementsByTagName('text')]
@@ -90,15 +110,15 @@ class Session {
         texts.forEach((text) => {
             const timer = new Timer(text)
             if (timer.enabled) {
-                this.timers.push(timer)
+                this.#timers.push(timer)
             }
         })
 
-        this.timers.forEach((timer) => {
-            if (timer.label in this.monitors) {
+        this.#timers.forEach((timer) => {
+            if (timer.label in this.#monitors) {
                 // nop
             } else {
-                this.monitors[timer.label] = Date.now()
+                this.#monitors[timer.label] = Date.now()
             }
         })
     }
@@ -106,71 +126,71 @@ class Session {
     updateTimers() {
         const now = Date.now()
 
-        this.timers.forEach(timer => {
-            const start = this.monitors[timer.label]
+        this.#timers.forEach(timer => {
+            const start = this.#monitors[timer.label]
             const elapsed = (now - start) / 1000
             timer.update(elapsed)
         })
     }
 }
 
-{
-    (function () {
-        let session = new Session()
-        let presenterRunning = false
-
+app = {
+    session: undefined,
+    main: function () {
         // update by document body change
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
-                    if (node.className == 'punch-full-screen-element punch-full-window-overlay') {
-                        presenterRunning = true
-                        onPresenterEnable(session)
+                    if (node.nodeType === 1 &&
+                        node.classList.contains('punch-full-screen-element') &&
+                        node.classList.contains('punch-full-window-overlay')) {
+                        this.session = new Session()
+                        this.onPresenterEnable(session)
                     }
                 })
                 mutation.removedNodes.forEach((node) => {
-                    if (node.className == 'punch-full-screen-element punch-full-window-overlay') {
-                        presenterRunning = false
-                        onPresenterDesable(session)
+                    if (node.nodeType === 1 &&
+                        node.classList.contains('punch-full-screen-element') &&
+                        node.classList.contains('punch-full-window-overlay')) {
+                        this.onPresenterDesable(this.session)
+                        this.session = undefined
                     }
                 })
             })
 
-            if (presenterRunning) {
-                onPresenterSlideUpdate(session)
+            if (this.session) {
+                this.onPresenterSlideUpdate(this.session)
             }
         })
-        observer.observe(document.documentElement, {
+        observer.observe(document.body, {
             childList: true,
             subtree: true
         });
 
         // update by time
         setInterval(() => {
-            if (presenterRunning) {
-                onPresenterTimeUpdate(session)
+            if (this.session) {
+                this.onPresenterTimeUpdate(this.session)
             }
         }, 100)
-    })()
-
-    function onPresenterEnable(session) {
+    },
+    onPresenterEnable: (session) => {
         //console.log('onPresenterEnable')
         session.initMonitors()
-    }
-
-    function onPresenterDesable(session) {
+    },
+    onPresenterDesable: (session) => {
         //console.log('onPresenterDesable')
         // nop
-    }
-
-    function onPresenterSlideUpdate(session) {
+    },
+    onPresenterSlideUpdate: (session) => {
         //console.log('onPresenterSlideUpdate')
         session.initTimers()
         session.updateTimers()
-    }
-
-    function onPresenterTimeUpdate(session) {
+    },
+    onPresenterTimeUpdate: (session) => {
         //console.log('onPresenterTimeUpdate')
         session.updateTimers()
     }
 }
+
+app.main()

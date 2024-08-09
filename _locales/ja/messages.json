@@ -3,7 +3,7 @@
         "message": "M2 Timer"
     },
     "appDesc": {
-        "message": "ウィンセッション用タイマーです。設定を適当に調整して ##00:30@ALICE## 等と置いてください。"
+        "message": "ウィンセッション用タイマーです。設定を適当に調整して ##00:30@ALICE## 等と置いてください。デモ → https://docs.google.com/presentation/d/13YOdr8vA6Ux10EQZyCMutiqmmt33KsptmBj5LmVTXkA/edit#slide=id.g2f15f206a37_0_43"
     },
     "prefix": {
         "message": "&lt;&lt;"
