@@ -145,7 +145,7 @@ app = {
                         node.classList.contains('punch-full-screen-element') &&
                         node.classList.contains('punch-full-window-overlay')) {
                         this.session = new Session()
-                        this.onPresenterEnable(session)
+                        this.onPresenterEnable(this.session)
                     }
                 })
                 mutation.removedNodes.forEach((node) => {
