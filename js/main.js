@@ -136,6 +136,56 @@ class Session {
 
 app = {
     session: undefined,
+    slideObserver: undefined,
+    slideRafId: 0,
+    slideRafWin: undefined,
+    attachIframeObserver: function (session) {
+        const iframe = document.querySelector('iframe.punch-present-iframe')
+        if (!iframe) return
+
+        const doc = iframe.contentDocument || iframe.contentWindow.document
+        const win = iframe.contentWindow
+
+        if (this.slideObserver) {
+            this.slideObserver.disconnect()
+            this.slideObserver = undefined
+        }
+        if (this.slideRafId && this.slideRafWin) {
+            try { this.slideRafWin.cancelAnimationFrame(this.slideRafId) } catch (e) {}
+            this.slideRafId = 0
+            this.slideRafWin = undefined
+        }
+
+        const schedule = () => {
+            if (this.slideRafId) return
+            this.slideRafWin = win
+            this.slideRafId = win.requestAnimationFrame(() => {
+                try {
+                    session.initTimers()
+                    session.updateTimers()
+                } finally {
+                    this.slideRafId = 0
+                    this.slideRafWin = undefined
+                }
+            })
+        }
+
+        this.slideObserver = new MutationObserver((muts) => {
+            for (const m of muts) {
+                if (m.type === 'childList' || m.type === 'characterData') {
+                    schedule()
+                    break
+                }
+            }
+        })
+        this.slideObserver.observe(doc, {
+            childList: true,
+            subtree: true,
+            characterData: true,
+        })
+
+        schedule()
+    },
     main: function () {
         // update by document body change
         const observer = new MutationObserver((mutations) => {
@@ -146,6 +196,7 @@ app = {
                         node.classList.contains('punch-full-window-overlay')) {
                         this.session = new Session()
                         this.onPresenterEnable(this.session)
+                        this.attachIframeObserver(this.session)
                     }
                 })
                 mutation.removedNodes.forEach((node) => {
@@ -153,6 +204,15 @@ app = {
                         node.classList.contains('punch-full-screen-element') &&
                         node.classList.contains('punch-full-window-overlay')) {
                         this.onPresenterDesable(this.session)
+                        if (this.slideObserver) {
+                            this.slideObserver.disconnect()
+                            this.slideObserver = undefined
+                        }
+                        if (this.slideRafId && this.slideRafWin) {
+                            try { this.slideRafWin.cancelAnimationFrame(this.slideRafId) } catch (e) {}
+                            this.slideRafId = 0
+                            this.slideRafWin = undefined
+                        }
                         this.session = undefined
                     }
                 })
@@ -160,6 +220,7 @@ app = {
 
             if (this.session) {
                 this.onPresenterSlideUpdate(this.session)
+                this.attachIframeObserver(this.session)
             }
         })
         observer.observe(document.body, {
