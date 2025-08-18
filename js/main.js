@@ -136,16 +136,14 @@ class Session {
 
 app = {
     session: undefined,
+    // Observer for changes inside the iframe (slides)
     slideObserver: undefined,
+    // Observer for changes on the parent document (overlay enter/exit)
+    parentObserver: undefined,
     slideRafId: 0,
     slideRafWin: undefined,
-    attachIframeObserver: function (session) {
-        const iframe = document.querySelector('iframe.punch-present-iframe')
-        if (!iframe) return
-
-        const doc = iframe.contentDocument || iframe.contentWindow.document
-        const win = iframe.contentWindow
-
+    // Teardown iframe-related observers and RAF, used in multiple places
+    teardownIframeObserver: function () {
         if (this.slideObserver) {
             this.slideObserver.disconnect()
             this.slideObserver = undefined
@@ -155,6 +153,16 @@ app = {
             this.slideRafId = 0
             this.slideRafWin = undefined
         }
+    },
+    attachIframeObserver: function (session) {
+        const iframe = document.querySelector('iframe.punch-present-iframe')
+        if (!iframe) return
+
+        const doc = iframe.contentDocument || iframe.contentWindow.document
+        const win = iframe.contentWindow
+
+        // Ensure previous iframe observers are cleared before attaching new
+        this.teardownIframeObserver()
 
         const schedule = () => {
             if (this.slideRafId) return
@@ -187,8 +195,8 @@ app = {
         schedule()
     },
     main: function () {
-        // update by document body change
-        const observer = new MutationObserver((mutations) => {
+        // Observe parent document for presenter overlay enter/exit
+        this.parentObserver = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === 1 &&
@@ -204,15 +212,7 @@ app = {
                         node.classList.contains('punch-full-screen-element') &&
                         node.classList.contains('punch-full-window-overlay')) {
                         this.onPresenterDesable(this.session)
-                        if (this.slideObserver) {
-                            this.slideObserver.disconnect()
-                            this.slideObserver = undefined
-                        }
-                        if (this.slideRafId && this.slideRafWin) {
-                            try { this.slideRafWin.cancelAnimationFrame(this.slideRafId) } catch (e) {}
-                            this.slideRafId = 0
-                            this.slideRafWin = undefined
-                        }
+                        this.teardownIframeObserver()
                         this.session = undefined
                     }
                 })
@@ -223,7 +223,7 @@ app = {
                 this.attachIframeObserver(this.session)
             }
         })
-        observer.observe(document.body, {
+        this.parentObserver.observe(document.body, {
             childList: true,
             subtree: true
         });
